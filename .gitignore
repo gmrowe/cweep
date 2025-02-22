@@ -1,0 +1,5 @@
+.cache/
+TODO.org
+*.a
+mines
+mines.dSYM/

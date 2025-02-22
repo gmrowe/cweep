@@ -1,0 +1,30 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-g",
+      "-Iraylib/src",
+      "-framework",
+      "CoreVideo",
+      "-framework",
+      "IOKit",
+      "-framework",
+      "Cocoa",
+      "-framework",
+      "GLUT",
+      "-framework",
+      "OpenGL",
+      "libraylib.a",
+      "-o",
+      "mines",
+      "main.c"
+    ],
+    "directory": "/Users/garrettrowe/dev/mines",
+    "file": "/Users/garrettrowe/dev/mines/main.c",
+    "output": "/Users/garrettrowe/dev/mines/mines"
+  }
+]
