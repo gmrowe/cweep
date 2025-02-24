@@ -1,7 +1,6 @@
 /* main.c */
 #include <_stdio.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include "raylib.h"
 
 // BG Color
@@ -153,7 +152,7 @@ void draw_frame(Font font)
 int main(void)
 {
     InitWindow(WIDTH, HEIGHT, "Mines");
-    Font font = LoadFont("resources/font/digital7mono/Digital7Mono-Yz9J4.ttf");
+    Font font = LoadFont("./resources/fonts/digital7mono/Digital7Mono-Yz9J4.ttf");
 
     while (!WindowShouldClose())
     {
