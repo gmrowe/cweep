@@ -19,7 +19,7 @@
 
 // Borders
 #define B_WIDTH (8)
-#define B_COLOR ((Color){160, 160, 160, 255})
+#define B_COLOR  ((Color){160, 160, 160, 255})
 #define SHADOW_WIDTH (4)
 #define SHADOW_COLOR_DK ((Color){100, 100, 100, 255})
 #define SHADOW_COLOR_LT ((Color){200, 200, 200, 255})
@@ -140,29 +140,79 @@ void draw_elapsed_time(size_t time_elapsed, Font font)
     draw_score_panel(panel_x, panel_y, panel_width, panel_height, time_elapsed, font);
 }
 
+void draw_button(Rectangle bounds)
+{
+    int bezel_width  = bounds.width / 8;
+    DrawRectangleLinesEx(bounds, 1.0, BLACK);
+    draw_top_beveled_edge(
+	bounds.x,
+	bounds.y,
+	bounds.width,
+	bezel_width,
+	SHADOW_COLOR_LT);
+    draw_left_beveled_edge(
+	bounds.x,
+	bounds.y,
+	bounds.width,
+	bezel_width,
+	SHADOW_COLOR_LT);
+    draw_right_beveled_edge(
+	bounds.x + bounds.width - bezel_width,
+	bounds.y,
+	bounds.width,
+	bezel_width,
+	SHADOW_COLOR_DK);
+    draw_bottom_beveled_edge(
+	bounds.x,
+	bounds.y + bounds.width - bezel_width,
+	bounds.width,
+	bezel_width,
+	SHADOW_COLOR_DK);
+}
 
-void draw_frame(Font font)
+void draw_smiley(Texture smiley, float scale)
+{
+    int bounds_width = WIDTH / 20;
+    Rectangle bounds =  (Rectangle) {
+	WIDTH / 2.0 - bounds_width / 2.0,
+	H_HEIGHT / 2.0 - bounds_width / 2.0,
+	bounds_width,
+	bounds_width
+    };
+    draw_button(bounds);
+    int x = (int)(WIDTH / 2.0 - smiley.width * scale / 2.0);
+    int y = (int)(H_HEIGHT / 2.0 - smiley.height * scale / 2.0);
+    DrawTextureEx(smiley, (Vector2){x, y}, 0.0, scale, RAYWHITE);
+}
+
+void draw(Font font, Texture smiley, float scale)
 {
     draw_header_borders();
     draw_game_borders();
     draw_mines_remaining(99, font);
     draw_elapsed_time(3, font);
+    draw_smiley(smiley, scale);
 }
 
 int main(void)
 {
     InitWindow(WIDTH, HEIGHT, "Mines");
     Font font = LoadFont("./resources/fonts/digital7mono/Digital7Mono-Yz9J4.ttf");
+    Image smiley_img = LoadImage("./resources/images/1F642_color.png");
+    Texture smiley_tex = LoadTextureFromImage(smiley_img);
+    UnloadImage(smiley_img);
+    float scale = 0.075;
 
     while (!WindowShouldClose())
     {
         BeginDrawing();
 	ClearBackground(BG_COLOR);
-	draw_frame(font);
+	draw(font, smiley_tex, scale);
         EndDrawing();
     }
 
     UnloadFont(font);
+    UnloadTexture(smiley_tex);
     CloseWindow();
     return 0;
 }
