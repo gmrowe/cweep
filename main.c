@@ -1,12 +1,12 @@
 /* main.c */
+#include <malloc/_malloc_type.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "raylib.h"
 
-// BG Color
-
 // Grid dimensions
-#define ROWS (9) //(16)
-#define COLS (9) //(30)
+#define ROWS  (16) // (9)
+#define COLS  (30) // (9)
 
 #define CELL_WIDTH (25)
 
@@ -17,6 +17,9 @@
 #define BDR_WIDTH (8)
 #define SHAD_WIDTH (4)
 
+// Padding
+#define SCORE_PADDING (6)
+#define SCORE_KERNING (1)
 
 static const Color BG_COLOR  = (Color) {150, 150, 150, 255};
 static const Color BDR_COLOR = (Color) {160, 160, 160, 255};
@@ -30,10 +33,43 @@ static const size_t HEIGHT =
 static const size_t WIDTH =
     (CELL_WIDTH * COLS) + (2 * SHAD_WIDTH) + (2 * BDR_WIDTH);
 
+static const Rectangle PLAY_BOUNDS = (Rectangle){
+  BDR_WIDTH + SHAD_WIDTH,
+  HDR_HEIGHT + SHAD_WIDTH,
+  CELL_WIDTH *COLS,
+  CELL_WIDTH * ROWS
+};
 
-// Padding
-#define SCORE_PADDING (6)
-#define SCORE_KERNING (1)
+typedef enum {
+    COVERED,
+    REVEALED,
+    HOVERED,
+} CellState;
+
+typedef struct {
+    CellState state;
+    uint8_t val;
+} Cell;
+
+typedef struct {
+    Font score_font;
+    Texture face_tex;
+    float face_scale;
+    Cell *cells;
+    size_t cell_count;
+    size_t mines_remaining;
+    size_t time_elapsed;
+    Vector2 mouse_pos;
+    int button_pressed;
+} RenderState;
+
+void destroy_render_state(RenderState *state) {
+    UnloadTexture(state->face_tex);
+    UnloadFont(state->score_font);
+    free(state->cells);
+    state->cells = NULL;
+    state = NULL;
+}
 
 // TODO: conider combining draw_top.. and draw_bottom. The only difference is
 //       the direction of the end triangles.
@@ -49,6 +85,7 @@ void draw_top_beveled_edge(size_t x, size_t y, size_t l, size_t w, Color c)
 	         (Vector2) {x + l, y},
 	         c);
 }
+
 
 void draw_bottom_beveled_edge(size_t x, size_t y, size_t l, size_t w, Color c)
 {
@@ -207,35 +244,85 @@ void draw_smiley(Texture smiley, float scale)
     DrawTextureEx(smiley, (Vector2){x, y}, 0.0, scale, RAYWHITE);
 }
 
-void draw(Font font, Texture smiley, float scale)
+void draw_cells(RenderState *render_state)
+{
+    for (size_t i = 0; i < render_state->cell_count; i++) {
+        Cell cell = render_state->cells[i];
+	size_t row = i / COLS;
+	size_t col = i % COLS;
+	int x = PLAY_BOUNDS.x + (col * CELL_WIDTH);
+	int y = PLAY_BOUNDS.y + (row * CELL_WIDTH);
+	if (cell.state == COVERED) {
+	    draw_button((Rectangle) {x, y, CELL_WIDTH, CELL_WIDTH});
+	}
+    }
+
+}
+
+void draw(RenderState *render_state)
 {
     draw_header_borders();
     draw_game_borders();
-    draw_mines_remaining(99, font);
-    draw_elapsed_time(3, font);
-    draw_smiley(smiley, scale);
+    draw_mines_remaining(render_state->mines_remaining, render_state->score_font);
+    draw_elapsed_time(render_state->time_elapsed, render_state->score_font);
+    draw_smiley(render_state->face_tex, render_state->face_scale);
     draw_grid();
+    draw_cells(render_state);
+}
+
+void collect_input(RenderState *render_state)
+{
+    Vector2 mouse_pos = GetMousePosition();
+    bool pointer_in_play_bounds = CheckCollisionPointRec(mouse_pos, PLAY_BOUNDS);
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && pointer_in_play_bounds) {
+	int row_under_mouse = (mouse_pos.y - PLAY_BOUNDS.y) / CELL_WIDTH;
+	int col_under_mouse = (mouse_pos.x - PLAY_BOUNDS.x) / CELL_WIDTH;
+	size_t cell_index = row_under_mouse * COLS + col_under_mouse;
+	render_state->cells[cell_index].state = REVEALED;
+    }
+}
+
+RenderState init_render_state(char *font_path, char *smiley_img_path)
+{
+    Image smiley_img = LoadImage(smiley_img_path);
+    const size_t cell_count = ROWS * COLS;
+    Cell *cells = malloc(sizeof(Cell) * cell_count);
+    for (size_t i = 0; i < cell_count; i++) {
+	cells[i] = (Cell) { .state = COVERED};
+    }
+   
+    RenderState render_state = {
+	.score_font = LoadFont(font_path),
+	.face_tex = LoadTextureFromImage(smiley_img),
+	.face_scale = 0.05,
+	.time_elapsed = 102,
+	.mines_remaining = 99,
+	.cells = cells,
+	.cell_count = cell_count,
+	.mouse_pos = (Vector2) GetMousePosition(),
+    };
+    UnloadImage(smiley_img);
+    return render_state;
 }
 
 int main(void)
 {
-    InitWindow(WIDTH, HEIGHT, "Mines");
-    Font font = LoadFont("./resources/fonts/fonts-DSEG_v046/DSEG7-Classic-MINI/DSEG7ClassicMini-Regular.ttf");
-    Image smiley_img = LoadImage("./resources/images/1F642_color.png");
-    Texture smiley_tex = LoadTextureFromImage(smiley_img);
-    UnloadImage(smiley_img);
-    float scale = 0.05;
+    char *font_path = "./resources/fonts/fonts-DSEG_v046/DSEG7-Classic-MINI/DSEG7ClassicMini-Regular.ttf";
+    char *smiley_img_path = "./resources/images/1F642_color.png";
+    char *title = "Mines";
 
+    InitWindow(WIDTH, HEIGHT, title);
+    RenderState render_state = init_render_state(font_path, smiley_img_path);
     while (!WindowShouldClose())
     {
         BeginDrawing();
 	ClearBackground(BG_COLOR);
-	draw(font, smiley_tex, scale);
+	collect_input(&render_state);
+	draw(&render_state);
         EndDrawing();
     }
 
-    UnloadFont(font);
-    UnloadTexture(smiley_tex);
+    destroy_render_state(&render_state);
     CloseWindow();
-    return 0;
+    return EXIT_SUCCESS;
 }
