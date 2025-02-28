@@ -63,15 +63,18 @@ typedef struct {
     int button_pressed;
 } RenderState;
 
-void destroy_render_state(RenderState *state) {
-    UnloadTexture(state->face_tex);
-    UnloadFont(state->score_font);
-    free(state->cells);
-    state->cells = NULL;
-    state = NULL;
-}
+typedef enum {
+    MARK,
+    REVEAL,
+    NONE,
+} Action;
 
-// TODO: conider combining draw_top.. and draw_bottom. The only difference is
+typedef struct {
+    Vector2 mouse_pos;
+    Action action;
+} Input;
+
+// TODO: consider combining draw_top.. and draw_bottom. The only difference is
 //       the direction of the end triangles.
 void draw_top_beveled_edge(size_t x, size_t y, size_t l, size_t w, Color c)
 {
@@ -85,7 +88,6 @@ void draw_top_beveled_edge(size_t x, size_t y, size_t l, size_t w, Color c)
 	         (Vector2) {x + l, y},
 	         c);
 }
-
 
 void draw_bottom_beveled_edge(size_t x, size_t y, size_t l, size_t w, Color c)
 {
@@ -127,6 +129,9 @@ void draw_right_beveled_edge(size_t x, size_t y, size_t l, size_t w, Color c)
 	         c);
 }
 
+
+// TODO: Consider combining draw_header_borders and draw_game_borders into a single
+//       function called draw_frame(Rectangle);
 void draw_header_borders(void) {
     draw_top_beveled_edge(0, 0, WIDTH, BDR_WIDTH, BDR_COLOR);
     draw_top_beveled_edge(BDR_WIDTH, BDR_WIDTH, WIDTH - (2 * BDR_WIDTH), SHAD_WIDTH, SHAD_COLOR_DK);
@@ -156,6 +161,9 @@ void draw_game_borders(void)
     draw_right_beveled_edge(WIDTH - BDR_WIDTH - SHAD_WIDTH, HDR_HEIGHT, HEIGHT - HDR_HEIGHT - BDR_WIDTH, SHAD_WIDTH, SHAD_COLOR_LT);
 }
 
+// TODO: Instead of re-drawing this every time, I could render it onto a texture and
+//       place the texture in the game play frame. Possibly even with the correct
+//       numbers in place since they do not change after the first click
 void draw_grid(void)
 {
     size_t width = (WIDTH - (2 * SHAD_WIDTH) - (2 * BDR_WIDTH)) / COLS;
@@ -261,6 +269,8 @@ void draw_cells(RenderState *render_state)
 
 void draw(RenderState *render_state)
 {
+    BeginDrawing();
+    ClearBackground(BG_COLOR);
     draw_header_borders();
     draw_game_borders();
     draw_mines_remaining(render_state->mines_remaining, render_state->score_font);
@@ -268,18 +278,20 @@ void draw(RenderState *render_state)
     draw_smiley(render_state->face_tex, render_state->face_scale);
     draw_grid();
     draw_cells(render_state);
+    EndDrawing();
 }
 
-void collect_input(RenderState *render_state)
+Input collect_input(void)
 {
-    Vector2 mouse_pos = GetMousePosition();
-    bool pointer_in_play_bounds = CheckCollisionPointRec(mouse_pos, PLAY_BOUNDS);
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && pointer_in_play_bounds) {
-	int row_under_mouse = (mouse_pos.y - PLAY_BOUNDS.y) / CELL_WIDTH;
-	int col_under_mouse = (mouse_pos.x - PLAY_BOUNDS.x) / CELL_WIDTH;
-	size_t cell_index = row_under_mouse * COLS + col_under_mouse;
-	render_state->cells[cell_index].state = REVEALED;
+    Action act;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) {
+	act = REVEAL;
+    } else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) || IsKeyPressed(KEY_M)) {
+	act = MARK;
+    } else {
+	act = NONE;
     }
+    return (Input) { .mouse_pos = GetMousePosition(), .action = act };
 }
 
 RenderState init_render_state(char *font_path, char *smiley_img_path)
@@ -290,7 +302,7 @@ RenderState init_render_state(char *font_path, char *smiley_img_path)
     for (size_t i = 0; i < cell_count; i++) {
 	cells[i] = (Cell) { .state = COVERED};
     }
-   
+
     RenderState render_state = {
 	.score_font = LoadFont(font_path),
 	.face_tex = LoadTextureFromImage(smiley_img),
@@ -305,6 +317,41 @@ RenderState init_render_state(char *font_path, char *smiley_img_path)
     return render_state;
 }
 
+void destroy_render_state(RenderState *state) {
+    UnloadTexture(state->face_tex);
+    UnloadFont(state->score_font);
+    free(state->cells);
+    state->cells = NULL;
+    state = NULL;
+}
+
+bool cell_for_pos(Vector2 mouse_pos, size_t *index)
+{
+    bool pointer_in_play_bounds = CheckCollisionPointRec(mouse_pos, PLAY_BOUNDS);
+    if (pointer_in_play_bounds) {
+	int row_under_mouse = (mouse_pos.y - PLAY_BOUNDS.y) / CELL_WIDTH;
+	int col_under_mouse = (mouse_pos.x - PLAY_BOUNDS.x) / CELL_WIDTH;
+	*index = row_under_mouse * COLS + col_under_mouse;
+    }
+    return pointer_in_play_bounds;
+}
+
+void update(RenderState *render_state, Input in)
+{
+    size_t index;
+    bool in_bounds = cell_for_pos(in.mouse_pos, &index);
+    if (in_bounds) {
+	Cell *cell = &render_state->cells[index];
+	if (cell->state == COVERED) {
+	    switch (in.action) {
+	    case REVEAL: cell->state = REVEALED; break;
+	    case MARK: /* TODO */ break;
+	    case NONE: break;
+	    }
+	}
+    }
+}
+
 int main(void)
 {
     char *font_path = "./resources/fonts/fonts-DSEG_v046/DSEG7-Classic-MINI/DSEG7ClassicMini-Regular.ttf";
@@ -315,11 +362,9 @@ int main(void)
     RenderState render_state = init_render_state(font_path, smiley_img_path);
     while (!WindowShouldClose())
     {
-        BeginDrawing();
-	ClearBackground(BG_COLOR);
-	collect_input(&render_state);
+	Input in = collect_input();
+	update(&render_state, in);
 	draw(&render_state);
-        EndDrawing();
     }
 
     destroy_render_state(&render_state);
