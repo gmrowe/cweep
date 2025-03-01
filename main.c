@@ -3,10 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
+#include "board.h"
 
 // Grid dimensions
 #define ROWS  (16) // (9)
-#define COLS  (30) // (9)
+#define COLS (30)  // (9)
+#define NUM_MINES (99)
 
 #define CELL_WIDTH (25)
 
@@ -357,7 +359,8 @@ int main(void)
     char *font_path = "./resources/fonts/fonts-DSEG_v046/DSEG7-Classic-MINI/DSEG7ClassicMini-Regular.ttf";
     char *smiley_img_path = "./resources/images/1F642_color.png";
     char *title = "Mines";
-
+    Board b = make_board(ROWS, COLS, NUM_MINES);
+    
     InitWindow(WIDTH, HEIGHT, title);
     RenderState render_state = init_render_state(font_path, smiley_img_path);
     while (!WindowShouldClose())
@@ -367,6 +370,7 @@ int main(void)
 	draw(&render_state);
     }
 
+    destroy_board(&b);
     destroy_render_state(&render_state);
     CloseWindow();
     return EXIT_SUCCESS;
