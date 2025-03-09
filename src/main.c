@@ -7,8 +7,8 @@
 // Grid dimensions
 #define ROWS (16)
 #define COLS (30)
-#define NUM_MINES (99)
-#define CELL_WIDTH (25)
+#define NUM_MINES (9) //(99)
+#define CELL_WIDTH (16)
 
 // Header (constant)
 #define HDR_HEIGHT (80)
@@ -25,7 +25,7 @@ static const Color BG_COLOR  = (Color) {150, 150, 150, 255};
 static const Color BDR_COLOR = (Color) {160, 160, 160, 255};
 static const Color SHAD_COLOR_DK = (Color) {100, 100, 100, 255};
 static const Color SHAD_COLOR_LT = (Color) {200, 200, 200, 255};
-static const Color GRID_COLOR = GREEN;
+static const Color GRID_COLOR = (Color) {125, 125, 125, 255};
 
 static const size_t HEIGHT =
     HDR_HEIGHT + (CELL_WIDTH * ROWS) + (2 * SHAD_WIDTH) + BDR_WIDTH;
@@ -54,6 +54,7 @@ typedef struct {
 typedef struct {
     Font score_font;
     Texture face_tex;
+    Texture *numbers;
     float face_scale;
     Cell *cells;
     size_t cell_count;
@@ -161,18 +162,21 @@ void draw_game_borders(void)
     draw_right_beveled_edge(WIDTH - BDR_WIDTH - SHAD_WIDTH, HDR_HEIGHT, HEIGHT - HDR_HEIGHT - BDR_WIDTH, SHAD_WIDTH, SHAD_COLOR_LT);
 }
 
-// TODO: Instead of re-drawing this every time, I could render it onto a texture and
-//       place the texture in the game play frame. Possibly even with the correct
-//       numbers in place since they do not change after the first click
-void draw_grid(void)
+/* TODO: Instead of re-drawing this every time, I could render it onto a texture and */
+/*       place the texture in the game play frame. Possibly even with the correct */
+/*       numbers in place since they do not change after the first click */
+void draw_grid(RenderState *render_state)
 {
+    (void) render_state;
     size_t width = (WIDTH - (2 * SHAD_WIDTH) - (2 * BDR_WIDTH)) / COLS;
     size_t height = (HEIGHT - HDR_HEIGHT - (2 * SHAD_WIDTH) - BDR_WIDTH) / ROWS;
     size_t start_x = BDR_WIDTH + SHAD_WIDTH;
     size_t start_y = HDR_HEIGHT + SHAD_WIDTH;
     for (size_t row = 0; row < ROWS; row++) {
 	for (size_t col = 0; col < COLS; col++) {
-	    DrawRectangleLines(start_x + (col * width), start_y + (row * height), width, height, GRID_COLOR);
+	    size_t x = start_x + (col * width);
+	    size_t y = start_y + (row * height);
+	    DrawRectangleLines(x, y, width, height, GRID_COLOR);
 	}
     }
 
@@ -282,7 +286,7 @@ void draw(RenderState *render_state)
     draw_mines_remaining(render_state->mines_remaining, render_state->score_font);
     draw_elapsed_time(render_state->time_elapsed, render_state->score_font);
     draw_smiley(render_state->face_tex, render_state->face_scale);
-    draw_grid();
+    draw_grid(render_state);
     draw_cells(render_state);
     EndDrawing();
 }
@@ -300,18 +304,30 @@ Input collect_input(void)
     return (Input) { .mouse_pos = GetMousePosition(), .action = act };
 }
 
-RenderState init_render_state(char *font_path, char *smiley_img_path)
+RenderState init_render_state(char *font_path, char *smiley_img_path, char *numbers_path)
 {
     Image smiley_img = LoadImage(smiley_img_path);
+    Image numbers_img = LoadImage(numbers_path);
     const size_t cell_count = ROWS * COLS;
     Cell *cells = malloc(sizeof(Cell) * cell_count);
     for (size_t i = 0; i < cell_count; i++) {
 	cells[i] = (Cell) { .state = CS_COVERED};
     }
 
+    Texture *numbers_texs = malloc(sizeof(Texture) * 10);
+    const size_t image_rows = 2;
+    const size_t nums_per_row = 5;
+    size_t nums_size = 75;
+    for (size_t row = 0; row < image_rows; row++) {
+	for (size_t num = 0; num < nums_per_row; num++) {
+	    Rectangle image_bounds = (Rectangle) {num * nums_size, row * nums_size, nums_size, nums_size};
+	    numbers_texs[row * image_rows + num] = LoadTextureFromImage(ImageFromImage(numbers_img, image_bounds));
+	}
+    }
     RenderState render_state = {
 	.score_font = LoadFont(font_path),
 	.face_tex = LoadTextureFromImage(smiley_img),
+	.numbers = numbers_texs,
 	.face_scale = 0.05,
 	.time_elapsed = 102,
 	.mines_remaining = 99,
@@ -320,14 +336,18 @@ RenderState init_render_state(char *font_path, char *smiley_img_path)
 	.mouse_pos = (Vector2) GetMousePosition(),
     };
     UnloadImage(smiley_img);
+    UnloadImage(numbers_img);
     return render_state;
 }
 
 void destroy_render_state(RenderState *state) {
+    // TODO: Unload numbers textures;
     UnloadTexture(state->face_tex);
     UnloadFont(state->score_font);
     free(state->cells);
+    free(state->numbers);
     state->cells = NULL;
+    state->numbers = NULL;
     state = NULL;
 }
 
@@ -347,6 +367,7 @@ void update_rs(RenderState *render_state, Board *board)
 	for (int col = 0; col < board->cols; col++) {
 	    size_t cell_index = row * board->cols + col;
 	    Cell *render_cell = &render_state->cells[cell_index];
+	    render_cell->val = value_at(board, row, col);
 	    switch (mark_at(board, row, col)) {
 	    case MK_NONE: break;
 	    case MK_FLAG: render_cell->state = CS_FLAGGED; break;
@@ -376,11 +397,12 @@ int main(void)
 {
     char *font_path = "./resources/fonts/fonts-DSEG_v046/DSEG7-Classic-MINI/DSEG7ClassicMini-Regular.ttf";
     char *smiley_img_path = "./resources/images/1F642_color.png";
+    char *numbers_path = "./resources/images/numbers.png";
     char *title = "Mines";
     Board b = make_board(ROWS, COLS, NUM_MINES);
 
     InitWindow(WIDTH, HEIGHT, title);
-    RenderState render_state = init_render_state(font_path, smiley_img_path);
+    RenderState render_state = init_render_state(font_path, smiley_img_path, numbers_path);
     while (!WindowShouldClose())
     {
 	Input in = collect_input();
