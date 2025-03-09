@@ -178,11 +178,13 @@ void draw_grid(void)
 
 }
 
+#define BUF_SIZE (4)
+
 void draw_score_panel(size_t x, size_t y, size_t width, size_t height, size_t score, Font font)
 {
     int v_offset = 8;
     DrawRectangle(x, y, width, height, BLACK);
-    const size_t BUF_SIZE = 4;
+
     char text[BUF_SIZE] = { 0 };
     snprintf(text, BUF_SIZE, "%03zu", score);
     float scale = 0.6;
