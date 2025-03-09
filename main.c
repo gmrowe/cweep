@@ -1,15 +1,13 @@
 /* main.c */
-#include <malloc/_malloc_type.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
 #include "board.h"
 
 // Grid dimensions
-#define ROWS  (16) // (9)
-#define COLS (30)  // (9)
+#define ROWS (16)
+#define COLS (30)
 #define NUM_MINES (99)
-
 #define CELL_WIDTH (25)
 
 // Header (constant)
@@ -43,9 +41,9 @@ static const Rectangle PLAY_BOUNDS = (Rectangle){
 };
 
 typedef enum {
-    COVERED,
-    REVEALED,
-    HOVERED,
+    CS_COVERED,
+    CS_REVEALED,
+    CS_FLAGGED
 } CellState;
 
 typedef struct {
@@ -209,10 +207,10 @@ void draw_elapsed_time(size_t time_elapsed, Font font)
     draw_score_panel(panel_x, panel_y, panel_width, panel_height, time_elapsed, font);
 }
 
-void draw_button(Rectangle bounds)
+void draw_button(Rectangle bounds, Color color)
 {
     int bezel_width  = bounds.width / 8;
-    DrawRectangleLinesEx(bounds, 1.0, BLACK);
+    DrawRectangleRec(bounds, color);
     draw_top_beveled_edge(
 	bounds.x,
 	bounds.y,
@@ -248,7 +246,7 @@ void draw_smiley(Texture smiley, float scale)
 	bounds_width,
 	bounds_width
     };
-    draw_button(bounds);
+    draw_button(bounds, BG_COLOR);
     int x = (int)(WIDTH / 2.0 - smiley.width * scale / 2.0);
     int y = (int)(HDR_HEIGHT / 2.0 - smiley.height * scale / 2.0);
     DrawTextureEx(smiley, (Vector2){x, y}, 0.0, scale, RAYWHITE);
@@ -262,8 +260,12 @@ void draw_cells(RenderState *render_state)
 	size_t col = i % COLS;
 	int x = PLAY_BOUNDS.x + (col * CELL_WIDTH);
 	int y = PLAY_BOUNDS.y + (row * CELL_WIDTH);
-	if (cell.state == COVERED) {
-	    draw_button((Rectangle) {x, y, CELL_WIDTH, CELL_WIDTH});
+	if (cell.state == CS_COVERED) {
+	    draw_button((Rectangle) {x, y, CELL_WIDTH, CELL_WIDTH}, BG_COLOR);
+	}
+
+	if (cell.state == CS_FLAGGED) {
+	    draw_button((Rectangle) {x, y, CELL_WIDTH, CELL_WIDTH}, RED);
 	}
     }
 
@@ -302,7 +304,7 @@ RenderState init_render_state(char *font_path, char *smiley_img_path)
     const size_t cell_count = ROWS * COLS;
     Cell *cells = malloc(sizeof(Cell) * cell_count);
     for (size_t i = 0; i < cell_count; i++) {
-	cells[i] = (Cell) { .state = COVERED};
+	cells[i] = (Cell) { .state = CS_COVERED};
     }
 
     RenderState render_state = {
@@ -327,29 +329,43 @@ void destroy_render_state(RenderState *state) {
     state = NULL;
 }
 
-bool cell_for_pos(Vector2 mouse_pos, size_t *index)
+bool cell_for_pos(Vector2 mouse_pos, Vector2 *cell_pos)
 {
     bool pointer_in_play_bounds = CheckCollisionPointRec(mouse_pos, PLAY_BOUNDS);
     if (pointer_in_play_bounds) {
-	int row_under_mouse = (mouse_pos.y - PLAY_BOUNDS.y) / CELL_WIDTH;
-	int col_under_mouse = (mouse_pos.x - PLAY_BOUNDS.x) / CELL_WIDTH;
-	*index = row_under_mouse * COLS + col_under_mouse;
+	cell_pos->y = (mouse_pos.y - PLAY_BOUNDS.y) / CELL_WIDTH;
+	cell_pos->x = (mouse_pos.x - PLAY_BOUNDS.x) / CELL_WIDTH;
     }
     return pointer_in_play_bounds;
 }
 
-void update(RenderState *render_state, Input in)
+void update_rs(RenderState *render_state, Board *board)
 {
-    size_t index;
-    bool in_bounds = cell_for_pos(in.mouse_pos, &index);
-    if (in_bounds) {
-	Cell *cell = &render_state->cells[index];
-	if (cell->state == COVERED) {
-	    switch (in.action) {
-	    case REVEAL: cell->state = REVEALED; break;
-	    case MARK: /* TODO */ break;
-	    case NONE: break;
+    for (int row = 0; row < board->rows; row++) {
+	for (int col = 0; col < board->cols; col++) {
+	    size_t cell_index = row * board->cols + col;
+	    Cell *render_cell = &render_state->cells[cell_index];
+	    switch (mark_at(board, row, col)) {
+	    case MK_NONE: break;
+	    case MK_FLAG: render_cell->state = CS_FLAGGED; break;
+	    case MK_REVEALED: render_cell->state = CS_REVEALED; break;
 	    }
+	}
+    }
+}
+
+void update(Board *b, Input in)
+{
+    Vector2 cell_index;
+    if (cell_for_pos(in.mouse_pos, &cell_index)) {
+	size_t row = cell_index.y;
+	size_t col = cell_index.x;
+	switch (in.action) {
+	case MARK:
+	    toggle_flag(b, row, col);
+	    break;
+	case REVEAL: reveal_at(b, row, col); break;
+	case NONE: break;
 	}
     }
 }
@@ -360,13 +376,14 @@ int main(void)
     char *smiley_img_path = "./resources/images/1F642_color.png";
     char *title = "Mines";
     Board b = make_board(ROWS, COLS, NUM_MINES);
-    
+
     InitWindow(WIDTH, HEIGHT, title);
     RenderState render_state = init_render_state(font_path, smiley_img_path);
     while (!WindowShouldClose())
     {
 	Input in = collect_input();
-	update(&render_state, in);
+	update(&b, in);
+	update_rs(&render_state, &b);
 	draw(&render_state);
     }
 
