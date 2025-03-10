@@ -4,6 +4,8 @@ A minesweeper clone in C. The graphical layer is handled by raylib.
 The project is strictly a learning exercise. Should get some decent C knowlege
 out of it.
 
+![Current state of game](./mines_screenshot.png)
+
 # Build
 
 To build the project, run make
@@ -28,3 +30,5 @@ This should build the `mines` executable. Then just run it:
 [ ] In game restart
 [ ] In game difficulty option
 [ ] High scores
+[ ] Enable timekeeping
+[ ] Enable mines remaining counter
