@@ -6,10 +6,10 @@ out of it.
 
 # Build
 
-To build the project, run build.sh
+To build the project, run make
 
 ``` shell
-./build.sh
+make
 ```
 
 This should build the `mines` executable. Then just run it:
@@ -20,4 +20,11 @@ This should build the `mines` executable. Then just run it:
 
 # TODO
 
-[] Literally everything!
+[ ] Show all unmarked mines if loss
+[ ] Show incorrecly marked mines if loss
+[ ] Show animation on win
+[ ] Add actual flag image to cells when marking
+[ ] Chord reveal all neigbors
+[ ] In game restart
+[ ] In game difficulty option
+[ ] High scores
