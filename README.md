@@ -20,15 +20,19 @@ This should build the `mines` executable. Then just run it:
 ./mines
 ```
 
+# Controls
+ - Mouse Right-click | Keyboard 'M'     = Flag/Unflag suspected mine
+ - Mouse Left-click  | Keyboard 'Spave' = Reveal cell
+
 # TODO
 
-[ ] Show all unmarked mines if loss
-[ ] Show incorrecly marked mines if loss
-[ ] Show animation on win
-[ ] Add actual flag image to cells when marking
-[ ] Chord reveal all neigbors
-[ ] In game restart
-[ ] In game difficulty option
-[ ] High scores
-[ ] Enable timekeeping
-[ ] Enable mines remaining counter
+[ ] Show all unmarked mines if loss \
+[ ] Show incorrecly marked mines if loss \
+[ ] Show animation on win \
+[ ] Add actual flag image to cells when marking \
+[ ] Chord reveal all neigbors \
+[ ] In game restart \
+[ ] In game difficulty option \
+[ ] High scores \
+[ ] Enable timekeeping \
+[ ] Enable mines remaining counter \
