@@ -1,4 +1,5 @@
 /* main.c */
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
@@ -7,8 +8,8 @@
 // Grid dimensions
 #define ROWS (16)
 #define COLS (30)
-#define NUM_MINES (9) //(99)
-#define CELL_WIDTH (16)
+#define NUM_MINES (20) //(99)
+#define CELL_WIDTH (25)
 
 // Header (constant)
 #define HDR_HEIGHT (80)
@@ -177,6 +178,10 @@ void draw_grid(RenderState *render_state)
 	    size_t x = start_x + (col * width);
 	    size_t y = start_y + (row * height);
 	    DrawRectangleLines(x, y, width, height, GRID_COLOR);
+	    size_t value = (size_t)render_state->cells[row * COLS + col].val;
+	    if (value != MINE_VAL) {
+		DrawTextureEx(render_state->numbers[value - 1], (Vector2){x, y}, 0.0, CELL_WIDTH/140.0, RAYWHITE);
+	    }
 	}
     }
 
@@ -304,30 +309,44 @@ Input collect_input(void)
     return (Input) { .mouse_pos = GetMousePosition(), .action = act };
 }
 
+Texture *load_number_textures(char* numbers_path)
+{
+    Image numbers_img = LoadImage(numbers_path);
+    // We need 8 numbers - 1-8,
+    const size_t nums_start = 70;
+    const size_t nums_width = 128;
+    const size_t nums_height = 140;
+    Rectangle bounds[8] = {0};
+    bounds[0] = (Rectangle) {nums_start + nums_width * 0, nums_height * 1, nums_width, nums_height};
+    bounds[1] = (Rectangle) {nums_start + nums_width * 1, nums_height * 2, nums_width, nums_height};
+    bounds[2] = (Rectangle) {nums_start + nums_width * 2, nums_height * 3, nums_width, nums_height};
+    bounds[3] = (Rectangle) {nums_start + nums_width * 4, nums_height * 4, nums_width, nums_height};
+    bounds[4] = (Rectangle) {nums_start + nums_width * 0, nums_height * 5, nums_width, nums_height};
+    bounds[5] = (Rectangle) {nums_start + nums_width * 1, nums_height * 6, nums_width, nums_height};
+    bounds[6] = (Rectangle) {nums_start + nums_width * 2, nums_height * 7, nums_width, nums_height};
+    bounds[7] = (Rectangle) {nums_start + nums_width * 4, nums_height * 8, nums_width, nums_height};
+
+    Texture *ntexs = malloc(sizeof(Texture) * 8);
+    for (size_t i = 0; i < 8; i++) {
+	ntexs[i] = LoadTextureFromImage(ImageFromImage(numbers_img, bounds[i]));
+    }
+    UnloadImage(numbers_img);
+    return ntexs;
+}
+
 RenderState init_render_state(char *font_path, char *smiley_img_path, char *numbers_path)
 {
     Image smiley_img = LoadImage(smiley_img_path);
-    Image numbers_img = LoadImage(numbers_path);
     const size_t cell_count = ROWS * COLS;
     Cell *cells = malloc(sizeof(Cell) * cell_count);
     for (size_t i = 0; i < cell_count; i++) {
 	cells[i] = (Cell) { .state = CS_COVERED};
     }
 
-    Texture *numbers_texs = malloc(sizeof(Texture) * 10);
-    const size_t image_rows = 2;
-    const size_t nums_per_row = 5;
-    size_t nums_size = 75;
-    for (size_t row = 0; row < image_rows; row++) {
-	for (size_t num = 0; num < nums_per_row; num++) {
-	    Rectangle image_bounds = (Rectangle) {num * nums_size, row * nums_size, nums_size, nums_size};
-	    numbers_texs[row * image_rows + num] = LoadTextureFromImage(ImageFromImage(numbers_img, image_bounds));
-	}
-    }
     RenderState render_state = {
 	.score_font = LoadFont(font_path),
 	.face_tex = LoadTextureFromImage(smiley_img),
-	.numbers = numbers_texs,
+	.numbers = load_number_textures(numbers_path),
 	.face_scale = 0.05,
 	.time_elapsed = 102,
 	.mines_remaining = 99,
@@ -336,7 +355,6 @@ RenderState init_render_state(char *font_path, char *smiley_img_path, char *numb
 	.mouse_pos = (Vector2) GetMousePosition(),
     };
     UnloadImage(smiley_img);
-    UnloadImage(numbers_img);
     return render_state;
 }
 
@@ -369,7 +387,7 @@ void update_rs(RenderState *render_state, Board *board)
 	    Cell *render_cell = &render_state->cells[cell_index];
 	    render_cell->val = value_at(board, row, col);
 	    switch (mark_at(board, row, col)) {
-	    case MK_NONE: break;
+	    case MK_NONE: render_cell->state = CS_COVERED; break;
 	    case MK_FLAG: render_cell->state = CS_FLAGGED; break;
 	    case MK_REVEALED: render_cell->state = CS_REVEALED; break;
 	    }
@@ -384,9 +402,7 @@ void update(Board *b, Input in)
 	size_t row = cell_index.y;
 	size_t col = cell_index.x;
 	switch (in.action) {
-	case MARK:
-	    toggle_flag(b, row, col);
-	    break;
+	case MARK: toggle_flag(b, row, col); break;
 	case REVEAL: reveal_at(b, row, col); break;
 	case NONE: break;
 	}
@@ -397,7 +413,7 @@ int main(void)
 {
     char *font_path = "./resources/fonts/fonts-DSEG_v046/DSEG7-Classic-MINI/DSEG7ClassicMini-Regular.ttf";
     char *smiley_img_path = "./resources/images/1F642_color.png";
-    char *numbers_path = "./resources/images/numbers.png";
+    char *numbers_path = "./resources/images/number_sheet.png";
     char *title = "Mines";
     Board b = make_board(ROWS, COLS, NUM_MINES);
 

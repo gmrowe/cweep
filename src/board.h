@@ -1,5 +1,4 @@
 /* board.h */
-
 #ifndef BOARD_H
 #define BOARD_H
 
@@ -19,6 +18,8 @@ typedef struct {
     int     cols;
     size_t count;
 } Board;
+
+extern const uint8_t MINE_VAL;
 
 bool in_bounds(Board *, int, int);
 uint8_t value_at(Board *, int, int);

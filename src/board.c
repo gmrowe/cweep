@@ -7,8 +7,7 @@
 #include <assert.h>
 #include "board.h"
 
-static const uint8_t MINE = 100;
-
+const uint8_t MINE_VAL = 100;
 
 bool in_bounds(Board *board, int row, int col)
 {
@@ -52,7 +51,7 @@ bool reveal_at(Board *board, int row, int col)
     if (board->values[i] == 0) {
 	for (int r = row - 1; r < row + 2; r++) {
 	    for (int c = (int)col - 1; c < (int)col + 2; c++) {
-		if (in_bounds(board, row, col)) {
+		if (in_bounds(board, r, c)) {
 		    reveal_at(board, r, c);
 		}
 	    }
@@ -64,7 +63,7 @@ bool reveal_at(Board *board, int row, int col)
 bool is_win(Board *board)
 {
     for (size_t i = 0; i < board->count; i++) {
-	if (board->values[i] != MINE && board->marks[i] != MK_REVEALED) {
+	if (board->values[i] != MINE_VAL && board->marks[i] != MK_REVEALED) {
 	    return false;
 	}
     }
@@ -73,7 +72,7 @@ bool is_win(Board *board)
 
 bool is_loss(Board *board) {
     for (size_t i = 0; i < board->count; i++) {
-	if (board->values[i] == MINE && board->marks[i] == MK_REVEALED) {
+	if (board->values[i] == MINE_VAL && board->marks[i] == MK_REVEALED) {
 	    return true;
 	}
     }
@@ -93,18 +92,18 @@ bool toggle_flag(Board *board, int row, int col)
 static bool place_mine_at_idx(Board *board, int index) {
     assert((size_t)index < board->count && "Index out of range!");
     // Don't place a mine in a square that already has one
-    if (board->values[index] == MINE) {
+    if (board->values[index] == MINE_VAL) {
 	return false;
     }
 
-    board->values[index] = MINE;
+    board->values[index] = MINE_VAL;
     int row = index / board->cols;
     int col = index % board->cols;
     for (int r = (int)row - 1; r < row + 2; r++) {
 	for (int c = (int)col - 1; c < col + 2; c++) {
 	    if (in_bounds(board, r, c)) {
 		int i = idx(board, r, c);
-		if (board->values[i] != MINE) {
+		if (board->values[i] != MINE_VAL) {
 		    board->values[i] += 1;
 		}
 	    }
@@ -152,7 +151,7 @@ void destroy_board(Board *board)
 void dump_revealed_board(Board *board) {
     for (int row = 0; row < board->rows; row++) {
 	for (int col = 0; col < board->cols; col++) {
-	    if (board->values[idx(board, row, col)] == MINE) {
+	    if (board->values[idx(board, row, col)] == MINE_VAL) {
 		putchar('*');
 	    } else {
 		putchar('0' + board->values[idx(board, row, col)]);
@@ -171,9 +170,9 @@ void dump_board(Board *board) {
 		uint8_t val = value_at(board, row, col);
 		char glyph;
 		switch (val) {
-		case MINE: glyph = '*';       break;
-		case 0:    glyph = '.';       break;
-		default:   glyph = '0' + val; break;
+		case MINE_VAL: glyph = '*';       break;
+		case 0:        glyph = '.';       break;
+		default:       glyph = '0' + val; break;
 		}
 		putchar(glyph);
 		break;
