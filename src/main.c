@@ -8,7 +8,7 @@
 // Grid dimensions
 #define ROWS (16)
 #define COLS (30)
-#define NUM_MINES (20) //(99)
+#define NUM_MINES (99)
 #define CELL_WIDTH (25)
 
 // Header (constant)
@@ -419,11 +419,31 @@ int main(void)
 
     InitWindow(WIDTH, HEIGHT, title);
     RenderState render_state = init_render_state(font_path, smiley_img_path, numbers_path);
+
+    bool game_over_message_shown = false;
     while (!WindowShouldClose())
     {
 	Input in = collect_input();
-	update(&b, in);
-	update_rs(&render_state, &b);
+	if (!is_win(&b) && !is_loss(&b)) {
+	    update(&b, in);
+	    update_rs(&render_state, &b);
+	}
+
+	if (is_win(&b)) {
+	    if (!game_over_message_shown) {
+		printf("[INFO] Congratulations, You win!\n");
+		game_over_message_shown = true;
+	    }
+	    // Handle loss
+	}
+
+	if (is_loss(&b)) {
+	    if (!game_over_message_shown) {
+		printf("[INFO] KABOOM! You lose\n");
+		game_over_message_shown = true;
+	    }
+	    // Handle loss
+	}
 	draw(&render_state);
     }
 
