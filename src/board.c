@@ -37,6 +37,49 @@ Mark mark_at(Board *board, int row, int col)
     return board->marks[(idx(board, row, col))];
 }
 
+static bool place_mine_at_idx(Board *board, int index) {
+    assert((size_t)index < board->count && "Index out of range!");
+    // Don't place a mine in a square that already has one
+    if (board->values[index] == MINE_VAL) {
+	return false;
+    }
+
+    board->values[index] = MINE_VAL;
+    int row = index / board->cols;
+    int col = index % board->cols;
+    for (int r = (int)row - 1; r < row + 2; r++) {
+	for (int c = (int)col - 1; c < col + 2; c++) {
+	    if (in_bounds(board, r, c)) {
+		int i = idx(board, r, c);
+		if (board->values[i] != MINE_VAL) {
+		    board->values[i] += 1;
+		}
+	    }
+	}
+    }
+    return true;
+}
+
+// An alternate algorithm would be to shuffle the indices of the array
+// and then place bombs at the first num_mines indices. This would eliminate
+// collisions at higher mine densities and would likely be faster. But
+// this is easier to implement and seems to be fast enough
+static void place_random_mines(Board *board, int safe_idx)
+{
+    // Keep trying to place mines at random until num_mines are placed
+    int num_mines = board->num_mines;
+    while (num_mines > 0) {
+	int idx = arc4random() % board->count;
+	if (idx == safe_idx) {
+	    continue;
+	}
+
+	if (place_mine_at_idx(board, idx)) {
+	    num_mines -= 1;
+	}
+    }
+}
+
 bool reveal_at(Board *board, int row, int col)
 {
     int i = idx(board, row, col);
@@ -45,6 +88,12 @@ bool reveal_at(Board *board, int row, int col)
 	return false;
     }
 
+    // In order to make the first click safe, we do not initialze the board
+    // until we have the first click
+    if (!board->initialized) {
+	place_random_mines(board, i);
+	board->initialized = true;
+    }
     board->marks[i] = MK_REVEALED;
 
     // Flood reveal zeroes
@@ -89,53 +138,13 @@ bool toggle_flag(Board *board, int row, int col)
     }
 }
 
-static bool place_mine_at_idx(Board *board, int index) {
-    assert((size_t)index < board->count && "Index out of range!");
-    // Don't place a mine in a square that already has one
-    if (board->values[index] == MINE_VAL) {
-	return false;
-    }
-
-    board->values[index] = MINE_VAL;
-    int row = index / board->cols;
-    int col = index % board->cols;
-    for (int r = (int)row - 1; r < row + 2; r++) {
-	for (int c = (int)col - 1; c < col + 2; c++) {
-	    if (in_bounds(board, r, c)) {
-		int i = idx(board, r, c);
-		if (board->values[i] != MINE_VAL) {
-		    board->values[i] += 1;
-		}
-	    }
-	}
-    }
-    return true;
-}
-
-
-// An alternate algorithm would be to shuffle the indices of the array
-// and then place bombs at the first num_mines indices. This would eliminate
-// collisions at higher mine densities and would likely be faster. But
-// this is easier to implement and seems to be fast enough
-static void place_random_mines(Board *board, int num_mines)
-{
-    // Keep trying to place mines at random until num_mines are placed
-    while (num_mines > 0) {
-	int idx = arc4random() % board->count;
-	if (place_mine_at_idx(board, idx)) {
-	    num_mines -= 1;
-	}
-    }
-}
-
 Board make_board(int rows, int cols, int num_mines)
 {
     assert(rows > 0 && cols > 0);
     size_t count = (size_t)(rows * cols);
     uint8_t *values = calloc(count, sizeof(uint8_t));
     Mark *marks = calloc(count, sizeof(Mark));
-    Board b = (Board) { values, marks, rows, cols, count };
-    place_random_mines(&b, num_mines);
+    Board b = { values, marks, rows, cols, count, num_mines, false };
     return b;
 }
 
