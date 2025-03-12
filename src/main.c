@@ -405,7 +405,7 @@ void update_rs(RenderState *render_state, Board *board, Input in)
 	if (render_state->start_time < 0.0) {
 	    render_state->start_time = in.curr_time;
 	}
-	render_state->mines_remaining = NUM_MINES;
+	render_state->mines_remaining = board->num_mines;
 	for (int row = 0; row < board->rows; row++) {
 	    for (int col = 0; col < board->cols; col++) {
 		size_t cell_index = row * board->cols + col;
@@ -424,8 +424,6 @@ void update_rs(RenderState *render_state, Board *board, Input in)
     }
     double delta_time = in.curr_time - render_state->start_time;
     render_state->time_elapsed = clamp((size_t)delta_time, 0, 999);
-
-    
 }
 
 void update(Board *b, Input in)
@@ -467,7 +465,7 @@ int main(void)
 		printf("[INFO] Congratulations, You win!\n");
 		game_over_message_shown = true;
 	    }
-	    // Handle loss
+	    // Handle win
 	}
 
 	if (is_loss(&b)) {
