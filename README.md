@@ -26,13 +26,14 @@ This should build the `mines` executable. Then just run it:
 
 # TODO
 
+[X] Enable mines remaining counter \
+[X] Enable timekeeping \
+[X] Enable first guess safety \
+[ ] Chord reveal all neigbors \
 [ ] Show all unmarked mines if loss \
 [ ] Show incorrecly marked mines if loss \
 [ ] Show animation on win \
 [ ] Add actual flag image to cells when marking \
-[ ] Chord reveal all neigbors \
 [ ] In game restart \
 [ ] In game difficulty option \
 [ ] High scores \
-[ ] Enable timekeeping \
-[ ] Enable mines remaining counter \
