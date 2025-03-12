@@ -1,5 +1,4 @@
 /* main.c */
-#include <float.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -401,25 +400,32 @@ size_t clamp(size_t value, size_t min, size_t max)
 
 void update_rs(RenderState *render_state, Board *board, Input in)
 {
-    // The game starts when a tile is flagged or revealed!
-    if (render_state->start_time < 0.0 && (in.action == MARK || in.action == REVEAL)) {
-	render_state->start_time = in.curr_time;
+    if (in.action == MARK || in.action == REVEAL){
+	// The game starts when a tile is flagged or revealed!
+	if (render_state->start_time < 0.0) {
+	    render_state->start_time = in.curr_time;
+	}
+	render_state->mines_remaining = NUM_MINES;
+	for (int row = 0; row < board->rows; row++) {
+	    for (int col = 0; col < board->cols; col++) {
+		size_t cell_index = row * board->cols + col;
+		Cell *render_cell = &render_state->cells[cell_index];
+		render_cell->val = value_at(board, row, col);
+		switch (mark_at(board, row, col)) {
+		case MK_NONE: render_cell->state = CS_COVERED; break;
+		case MK_FLAG:
+		    render_cell->state = CS_FLAGGED;
+		    render_state->mines_remaining -= 1;
+		    break;
+		case MK_REVEALED: render_cell->state = CS_REVEALED; break;
+		}
+	    }
+	};
     }
     double delta_time = in.curr_time - render_state->start_time;
-    render_state->time_elapsed = clamp((size_t) delta_time, 0, 999);
+    render_state->time_elapsed = clamp((size_t)delta_time, 0, 999);
 
-    for (int row = 0; row < board->rows; row++) {
-	for (int col = 0; col < board->cols; col++) {
-	    size_t cell_index = row * board->cols + col;
-	    Cell *render_cell = &render_state->cells[cell_index];
-	    render_cell->val = value_at(board, row, col);
-	    switch (mark_at(board, row, col)) {
-	    case MK_NONE: render_cell->state = CS_COVERED; break;
-	    case MK_FLAG: render_cell->state = CS_FLAGGED; break;
-	    case MK_REVEALED: render_cell->state = CS_REVEALED; break;
-	    }
-	}
-    }
+    
 }
 
 void update(Board *b, Input in)
