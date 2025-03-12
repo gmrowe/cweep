@@ -1,4 +1,5 @@
 /* main.c */
+#include <float.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +61,7 @@ typedef struct {
     Cell *cells;
     size_t cell_count;
     size_t mines_remaining;
+    double start_time;
     size_t time_elapsed;
     Vector2 mouse_pos;
     int button_pressed;
@@ -73,6 +75,7 @@ typedef enum {
 
 typedef struct {
     Vector2 mouse_pos;
+    double curr_time;
     Action action;
 } Input;
 
@@ -289,7 +292,8 @@ void draw(RenderState *render_state)
     draw_header_borders();
     draw_game_borders();
     draw_mines_remaining(render_state->mines_remaining, render_state->score_font);
-    draw_elapsed_time(render_state->time_elapsed, render_state->score_font);
+    size_t time = render_state->start_time > 0 ? render_state->time_elapsed : 0;
+    draw_elapsed_time(time, render_state->score_font);
     draw_smiley(render_state->face_tex, render_state->face_scale);
     draw_grid(render_state);
     draw_cells(render_state);
@@ -306,7 +310,11 @@ Input collect_input(void)
     } else {
 	act = NONE;
     }
-    return (Input) { .mouse_pos = GetMousePosition(), .action = act };
+    return (Input) {
+	.mouse_pos = GetMousePosition(),
+	.action = act,
+	.curr_time = GetTime(),
+    };
 }
 
 Texture *load_number_textures(char* numbers_path)
@@ -352,6 +360,7 @@ RenderState init_render_state(char *font_path, char *smiley_img_path, char *numb
 	.mines_remaining = 99,
 	.cells = cells,
 	.cell_count = cell_count,
+	.start_time = -1.0,
 	.mouse_pos = (Vector2) GetMousePosition(),
     };
     UnloadImage(smiley_img);
@@ -379,8 +388,26 @@ bool cell_for_pos(Vector2 mouse_pos, Vector2 *cell_pos)
     return pointer_in_play_bounds;
 }
 
-void update_rs(RenderState *render_state, Board *board)
+size_t clamp(size_t value, size_t min, size_t max)
 {
+    if (value < min) {
+	return min;
+    } else if (value > max) {
+	return max;
+    } else {
+	return value;
+    }
+}
+
+void update_rs(RenderState *render_state, Board *board, Input in)
+{
+    // The game starts when a tile is flagged or revealed!
+    if (render_state->start_time < 0.0 && (in.action == MARK || in.action == REVEAL)) {
+	render_state->start_time = in.curr_time;
+    }
+    double delta_time = in.curr_time - render_state->start_time;
+    render_state->time_elapsed = clamp((size_t) delta_time, 0, 999);
+
     for (int row = 0; row < board->rows; row++) {
 	for (int col = 0; col < board->cols; col++) {
 	    size_t cell_index = row * board->cols + col;
@@ -426,7 +453,7 @@ int main(void)
 	Input in = collect_input();
 	if (!is_win(&b) && !is_loss(&b)) {
 	    update(&b, in);
-	    update_rs(&render_state, &b);
+	    update_rs(&render_state, &b, in);
 	}
 
 	if (is_win(&b)) {
